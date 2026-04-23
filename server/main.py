@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-app = FastAPI(title="Orkestr.ai FastAPI")
+app = FastAPI(title="Orkestr FastAPI")
 
 app.add_middleware(
     CORSMiddleware,
