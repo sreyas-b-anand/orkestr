@@ -1,5 +1,5 @@
 from typing import TypedDict, Optional, Dict, Any
-
+from uuid import UUID
 class GraphState(TypedDict):
     source_text: str
     fact_sheet: dict
@@ -8,4 +8,5 @@ class GraphState(TypedDict):
     feedback: str
     status: str
     iterations: int
-    tone: str
+    user_id:UUID
+    tone: str       

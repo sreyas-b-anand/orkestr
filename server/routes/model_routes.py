@@ -10,9 +10,13 @@ ap = AgentPipeline()
 async def generate_content(request: TextRequest , user=Depends(get_current_user)):
     
     text = request.text
-    result = await ap.run(text)
+    result = await ap.run(
+        request.text,
+        user.id
+    )
 
     return {
-        "input": text,
+        "input": request.text,
         "output": result
     }
+

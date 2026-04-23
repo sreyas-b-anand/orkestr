@@ -1,19 +1,28 @@
-
-
 from fastapi import WebSocket
-
+from uuid import UUID
 class WSManager:
     def __init__(self):
-        self.connections: dict[str, WebSocket] = {}
+        self.connections: dict[UUID, WebSocket] = {}
 
-    async def connect(self, client_id: str, websocket: WebSocket):
+    async def connect(self, user_id: UUID, websocket: WebSocket):
         await websocket.accept()
-        self.connections[client_id] = websocket
 
-    def disconnect(self, client_id: str):
-        self.connections.pop(client_id, None)
+        old = self.connections.get(user_id)
+        if old:
+            await old.close()
 
-    async def send(self, client_id: str, message: dict):
-        conn = self.connections.get(client_id)
+        self.connections[user_id] = websocket
+
+    def disconnect(self, user_id: UUID, websocket: WebSocket = None):
+        if websocket:
+            if self.connections.get(user_id) == websocket:
+                self.connections.pop(user_id, None)
+        else:
+            self.connections.pop(user_id, None)
+
+    async def send(self, user_id: UUID, message: dict):
+        conn = self.connections.get(user_id)
         if conn:
             await conn.send_json(message)
+            
+ws_manager = WSManager()

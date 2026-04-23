@@ -9,9 +9,9 @@ class CampaignService:
     def __init__(self):
         self.supabase = SupabaseConfig()
 
-    async def get_all_campaigns(self):
+    async def get_all_campaigns(self, user_id: UUID):
         try:
-            campaigns = self.supabase.client.table("campaigns").select("*").execute()
+            campaigns = self.supabase.client.table("campaigns").select("*").eq("user_id", str(user_id)).execute()
 
             if not campaigns or not campaigns.data:
                 logger.warning("No campaigns found in the database.")
@@ -24,9 +24,9 @@ class CampaignService:
             logger.error("Error fetching campaigns: %s", e)
             return {"campaigns": [], "status": False, "message": "Error fetching campaigns"}
 
-    async def get_campaign_by_id(self, campaign_id : UUID):
+    async def get_campaign_by_id(self, campaign_id : UUID, user_id: UUID):
         try:
-            campaign = self.supabase.client.table("campaigns").select("*").eq("id", campaign_id).execute()
+            campaign = self.supabase.client.table("campaigns").select("*").eq("id", str(campaign_id)).eq("user_id", str(user_id)).execute()
 
             if not campaign or not campaign.data:
                 logger.warning("Campaign with ID %d not found.", campaign_id)
@@ -38,9 +38,9 @@ class CampaignService:
             logger.error("Error fetching campaign by ID: %s", e)
             return {"campaign": None, "status": False, "message": "Error fetching campaign"}
 
-    async def delete_campaign(self, campaign_id : UUID):  
+    async def delete_campaign(self, campaign_id : UUID, user_id: UUID):
         try:
-            response = self.supabase.client.table("campaigns").delete().eq("id", campaign_id).execute()
+            response = self.supabase.client.table("campaigns").delete().eq("id", str(campaign_id)).eq("user_id", str(user_id)).execute()
 
             if response.status_code == 204:
                 logger.info("Campaign with ID %d deleted successfully.", campaign_id)
