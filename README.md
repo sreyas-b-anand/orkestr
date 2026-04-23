@@ -1,6 +1,6 @@
-# Cymonic AI Campaign Generator
+# Orkestr AI Campaign Generator
 
-Cymonic is a powerful full-stack platform designed to automate and streamline marketing campaign generation. Leveraging advanced multi-agent AI pipelines, Cymonic orchestrates specialized agents—such as planners, copywriters, and reviewers—to transform simple prompts into comprehensive marketing campaigns. 
+Orkestr is a powerful full-stack platform designed to automate and streamline marketing campaign generation. Leveraging advanced multi-agent AI pipelines, Orkestr orchestrates specialized agents—such as planners, copywriters, and reviewers—to transform simple prompts into comprehensive marketing campaigns. 
 
 The application features a modern, responsive frontend built with Next.js and a robust Python FastAPI backend, offering real-time streaming of agent interactions via WebSockets and seamless integration with Supabase for authentication and storage.
 
