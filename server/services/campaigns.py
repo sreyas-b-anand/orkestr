@@ -42,11 +42,11 @@ class CampaignService:
         try:
             response = self.supabase.client.table("campaigns").delete().eq("id", str(campaign_id)).eq("user_id", str(user_id)).execute()
 
-            if response.status_code == 204:
-                logger.info("Campaign with ID %d deleted successfully.", campaign_id)
+            if response.data is not None:
+                logger.info("Campaign with ID %s deleted successfully.", campaign_id)
                 return {"status": True, "message": "Campaign deleted successfully"}
             else:
-                logger.warning("Failed to delete campaign with ID %d. Status code: %d", campaign_id, response.status_code)
+                logger.warning("Failed to delete campaign with ID %s.", campaign_id)
                 return {"status": False, "message": "Failed to delete campaign"}
 
         except Exception as e:

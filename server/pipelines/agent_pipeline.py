@@ -1,4 +1,5 @@
 import logging
+import json
 from uuid import UUID
 
 from agents import FactAgent, WriterAgent, EditorAgent
@@ -224,11 +225,19 @@ class AgentPipeline:
             "status": ""
         })
 
+        output_data = {
+            "fact_sheet": result.get("fact_sheet", {}),
+            "drafts": result.get("drafts", {}),
+            "review": result.get("review", {}),
+            "status": result.get("status", ""),
+            "iterations": result.get("iterations", 0),
+        }
+
         try:
             self.supabase.client.table("campaigns").insert({
-                "user_id" : str(user_id),
+                "user_id": str(user_id),
                 "input_text": source_text,
-                "output": result,
+                "output": json.loads(json.dumps(output_data, default=str)),
                 "status": result.get("status", ""),
                 "iterations": result.get("iterations", 0)
             }).execute()

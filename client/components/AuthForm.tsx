@@ -1,15 +1,17 @@
 "use client";
 
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
-import { Mail, Lock, ArrowRight, Loader2 } from "lucide-react";
+import { Mail, Lock, ArrowRight, Loader2, Sparkles } from "lucide-react";
 
 const AuthForm = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({ email: "", password: "" });
+  const router = useRouter();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -29,22 +31,23 @@ const AuthForm = () => {
           password: form.password,
         });
         if (error) throw error;
-        toast.success("Welcome back");
+        toast.success("Welcome back!");
+        router.push("/dashboard");
       } else {
         const { error } = await supabase.auth.signUp({
           email: form.email,
           password: form.password,
         });
         if (error) throw error;
-        toast.success("Account created");
+        toast.success("Account created! You can now sign in.");
+        setIsLogin(true);
       }
-    } catch (err: any) {
-      toast.error(err?.message || "Authentication failed");
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "Authentication failed";
+      toast.error(message);
     } finally {
       setLoading(false);
-      const { data } = await supabase.auth.getSession()
-      
-      console.log(data?.session?.access_token)
     }
   };
 
@@ -53,13 +56,21 @@ const AuthForm = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background px-4">
-      <div className="w-full max-w-sm">
+    <div className="min-h-screen flex items-center justify-center bg-background px-4 relative overflow-hidden">
+      {/* Background glow */}
+      <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-150 h-150 bg-primary/5 rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-0 right-0 w-100 h-100 bg-chart-2/5 rounded-full blur-[100px] pointer-events-none" />
 
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: "easeOut" }}
+        className="w-full max-w-sm relative z-10"
+      >
         {/* Header */}
         <div className="mb-8 text-center">
-          <div className="inline-flex items-center justify-center w-10 h-10 rounded-2xl bg-foreground mb-5">
-            <Lock className="w-4 h-4 text-background" />
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-primary/10 border border-primary/20 mb-5 glow-primary">
+            <Sparkles className="w-5 h-5 text-primary" />
           </div>
           <AnimatePresence mode="wait">
             <motion.div
@@ -69,37 +80,36 @@ const AuthForm = () => {
               exit={{ opacity: 0, y: -6 }}
               transition={{ duration: 0.2 }}
             >
-              <h1 className="text-xl font-semibold tracking-tight text-foreground">
+              <h1 className="text-2xl font-semibold tracking-tight text-foreground">
                 {isLogin ? "Welcome back" : "Create an account"}
               </h1>
               <p className="mt-1.5 text-sm text-muted-foreground">
                 {isLogin
-                  ? "Sign in to continue"
-                  : "Get started for free today"}
+                  ? "Sign in to your campaign dashboard"
+                  : "Get started with AI-powered campaigns"}
               </p>
             </motion.div>
           </AnimatePresence>
         </div>
 
         {/* Card */}
-        <div className="rounded-2xl border border-border bg-background/60 backdrop-blur-sm p-6 shadow-sm">
-
+        <div className="glass-card rounded-2xl p-6 shadow-lg">
           {/* Tab toggle */}
-          <div className="relative flex bg-muted rounded-xl p-1 mb-5">
+          <div className="relative flex bg-muted/50 rounded-xl p-1 mb-6">
             <motion.div
               layout
               transition={{ type: "spring", stiffness: 500, damping: 35 }}
-              className="absolute inset-y-1 w-[calc(50%-2px)] rounded-lg bg-background shadow-sm"
+              className="absolute inset-y-1 w-[calc(50%-2px)] rounded-lg bg-primary/10 border border-primary/20 shadow-sm"
               style={{ left: isLogin ? "4px" : "calc(50% + 2px)" }}
             />
             {["Login", "Sign Up"].map((label, i) => (
               <button
                 key={label}
                 onClick={() => setIsLogin(i === 0)}
-                className={`relative z-10 w-1/2 py-1.5 text-sm font-medium transition-colors duration-150 ${
+                className={`relative z-10 w-1/2 py-2 text-sm font-medium transition-colors duration-150 rounded-lg ${
                   isLogin === (i === 0)
-                    ? "text-foreground"
-                    : "text-muted-foreground"
+                    ? "text-primary"
+                    : "text-muted-foreground hover:text-foreground"
                 }`}
               >
                 {label}
@@ -129,20 +139,11 @@ const AuthForm = () => {
             />
           </div>
 
-          {/* Forgot password */}
-          {isLogin && (
-            <div className="mt-2.5 text-right">
-              <button className="text-xs text-muted-foreground hover:text-foreground transition-colors">
-                Forgot password?
-              </button>
-            </div>
-          )}
-
           {/* Submit */}
           <button
             onClick={handleAuth}
             disabled={loading}
-            className="mt-5 w-full flex items-center justify-center gap-2 h-10 px-4 rounded-xl bg-foreground text-background text-sm font-medium hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            className="mt-6 w-full flex items-center justify-center gap-2 h-11 px-4 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50 disabled:cursor-not-allowed glow-primary"
           >
             {loading ? (
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -160,17 +161,16 @@ const AuthForm = () => {
           {isLogin ? "Don't have an account?" : "Already have an account?"}{" "}
           <button
             onClick={() => setIsLogin(!isLogin)}
-            className="font-medium text-foreground hover:underline underline-offset-4"
+            className="font-medium text-primary hover:underline underline-offset-4"
           >
             {isLogin ? "Sign up" : "Sign in"}
           </button>
         </p>
-      </div>
+      </motion.div>
     </div>
   );
 };
 
-/* ── Field input sub-component ── */
 type FieldProps = {
   icon: React.ReactNode;
   name: string;
@@ -191,7 +191,7 @@ const FieldInput = ({
   onKeyDown,
 }: FieldProps) => (
   <div className="relative group">
-    <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-foreground transition-colors">
+    <span className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground group-focus-within:text-primary transition-colors">
       {icon}
     </span>
     <input
@@ -201,7 +201,7 @@ const FieldInput = ({
       value={value}
       onChange={onChange}
       onKeyDown={onKeyDown}
-      className="w-full h-10 pl-10 pr-3.5 rounded-xl border border-border bg-muted/40 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-foreground/20 focus:border-foreground/30 transition-all"
+      className="w-full h-11 pl-10 pr-3.5 rounded-xl border border-border bg-muted/30 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-primary/40 focus:border-primary/40 transition-all"
     />
   </div>
 );
