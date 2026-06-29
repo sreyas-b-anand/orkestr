@@ -19,6 +19,9 @@ async def generate_content(request: OrkestrRequest , user=Depends(get_current_us
         await redis_instance.delete(f"campaigns:user:{user.id}")
 
     return OrkestrResponse(
-        input={"text": request.text},
+        input={
+            "campaignName": request.campaignName,
+            "text": request.text
+        },
         output=result
     )
