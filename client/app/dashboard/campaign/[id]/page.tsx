@@ -1,29 +1,28 @@
 "use client";
 
 import { useEffect, useState, use } from "react";
-import { FactRow } from "@/components/FactRow";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { toast } from "sonner";
 import { getCampaign } from "@/lib/api";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Campaign } from "@/types/campaign";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { FactSheetCard } from "@/components/campaign/FactSheetCard";
+import { ContentSection } from "@/components/campaign/ContentSection";
+import { SocialThreadCard } from "@/components/campaign/SocialThreadCard";
+import { EmailCard } from "@/components/campaign/EmailCard";
+import { ReviewCard } from "@/components/campaign/ReviewCard";
+import { downloadCampaignAsPdf } from "@/lib/export-pdf";
 import {
   ArrowLeft,
   Copy,
   Download,
   CheckCircle2,
   FileText,
-  MessageSquare,
-  Mail,
-  IterationCcw,
   Calendar,
-  Sparkles,
-  AlertTriangle,
+  IterationCcw,
 } from "lucide-react";
 
 export default function CampaignDetailPage({
@@ -33,7 +32,7 @@ export default function CampaignDetailPage({
 }) {
   const { id } = use(params);
   const router = useRouter();
-  const [campaign, setCampaign] = useState< Campaign | null>(null);
+  const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
 
@@ -57,41 +56,33 @@ export default function CampaignDetailPage({
     load();
   }, [id, router]);
 
-  const handleCopy = async (content: string) => {
-    await navigator.clipboard.writeText(content);
+  const handleCopyAll = async () => {
+    if (!campaign) return;
+    const exportData = {
+      input: campaign.input_text,
+      ...campaign.output,
+    };
+    await navigator.clipboard.writeText(JSON.stringify(exportData, null, 2));
     setCopied(true);
     toast.success("Copied to clipboard");
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleDownload = () => {
-    if (!campaign) return;
-    const exportData = {
-      campaign_id: campaign.id,
-      input: campaign.input_text,
-      ...campaign.output,
-    };
-    const blob = new Blob([JSON.stringify(exportData, null, 2)], {
-      type: "application/json",
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `campaign-${campaign.id.slice(0, 8)}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success("Downloaded campaign kit");
-  };
-
+  /* ── Loading ── */
   if (loading) {
     return (
-      <div className="space-y-6">
-        <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-4 w-72" />
-        <div className="grid gap-4 lg:grid-cols-2">
-          <Skeleton className="h-96 rounded-2xl" />
-          <Skeleton className="h-96 rounded-2xl" />
+      <div className="space-y-6 max-w-5xl">
+        <Skeleton className="h-9 w-32" />
+        <div className="flex items-center gap-4">
+          <Skeleton className="h-8 w-56" />
+          <Skeleton className="h-7 w-28 rounded-full" />
         </div>
+        <div className="grid grid-cols-2 gap-5">
+          <Skeleton className="h-52 rounded-2xl" />
+          <Skeleton className="h-52 rounded-2xl" />
+        </div>
+        <Skeleton className="h-72 rounded-2xl" />
+        <Skeleton className="h-64 rounded-2xl" />
       </div>
     );
   }
@@ -101,333 +92,162 @@ export default function CampaignDetailPage({
   const drafts = campaign.output?.drafts;
   const review = campaign.output?.review;
 
-  // Cast to typed object for rendering
-  const factSheet = campaign.output?.fact_sheet as {
-    product_name?: string;
-    value_proposition?: string;
-    target_audience?: string;
-    tone_and_positioning?: string;
-    core_features?: string[];
-    ambiguous_statements?: { statement: string; reason: string }[];
-  } | undefined;
+  const factSheet = campaign.output?.fact_sheet as
+    | {
+        product_name?: string;
+        value_proposition?: string;
+        target_audience?: string;
+        tone_and_positioning?: string;
+        core_features?: string[];
+        ambiguous_statements?: { statement: string; reason: string }[];
+      }
+    | undefined;
 
-  const statusColor =
-    campaign.status === "approved"
-      ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/25"
-      : "bg-amber-500/15 text-amber-400 border-amber-500/25";
+  const hasFactSheet =
+    factSheet &&
+    (factSheet.product_name ||
+      factSheet.value_proposition ||
+      factSheet.target_audience ||
+      factSheet.core_features?.length);
+
+  const date = campaign.created_at
+    ? new Date(campaign.created_at).toLocaleDateString("en-US", {
+        month: "long",
+        day: "numeric",
+        year: "numeric",
+      })
+    : "N/A";
 
   return (
     <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
+      className="max-w-5xl space-y-6"
     >
-      {/* Back + Header */}
-      <div className="mb-8">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => router.push("/dashboard")}
-          className="gap-1.5 text-muted-foreground hover:text-foreground mb-4 -ml-2"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to campaigns
-        </Button>
-        <div className="flex flex-wrap items-center gap-3">
-          <h1 className="text-2xl font-bold tracking-tight text-foreground">
-            Campaign Details
-          </h1>
-          <Badge
-            variant="outline"
-            className={`${statusColor} text-xs font-semibold uppercase tracking-wider`}
-          >
-            {campaign.status || "pending"}
-          </Badge>
-          <span className="flex items-center gap-1 text-xs text-muted-foreground">
-            <IterationCcw className="w-3 h-3" />
-            {campaign.iterations} iterations
-          </span>
-          <span className="flex items-center gap-1 text-xs text-muted-foreground">
-            <Calendar className="w-3 h-3" />
-            {campaign?.created_at && new Date(campaign.created_at).toLocaleDateString()}
-          </span>
+      {/* ── Back ── */}
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => router.push("/dashboard")}
+        className="gap-1.5 text-muted-foreground hover:text-foreground -ml-2"
+      >
+        <ArrowLeft className="w-4 h-4" />
+        Back to campaigns
+      </Button>
+
+      {/* ── Campaign header ── */}
+      <div className="section-card px-6 py-5">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h1 className="text-xl font-bold text-foreground mb-2">
+              Campaign Report
+            </h1>
+            <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
+              <span className="flex items-center gap-1.5">
+                <IterationCcw className="w-3.5 h-3.5" />
+                {campaign.iterations} iteration
+                {campaign.iterations !== 1 ? "s" : ""}
+              </span>
+              <span className="flex items-center gap-1.5">
+                <Calendar className="w-3.5 h-3.5" />
+                {date}
+              </span>
+            </div>
+          </div>
+          <StatusBadge status={campaign.status} size="lg" />
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Left: Source + Fact Sheet */}
-        <div className="space-y-4">
-          {/* Source text */}
-          <div className="glass-card rounded-2xl p-5">
-            <h3 className="text-sm font-medium text-foreground mb-3 flex items-center gap-2">
-              <FileText className="w-4 h-4 text-primary" />
-              Source Text
-            </h3>
-            <ScrollArea className="h-[200px]">
-              <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">
-                {campaign.input_text}
-              </p>
-            </ScrollArea>
-          </div>
-
-          {/* Fact Sheet */}
-          {factSheet && (
-            <div className="glass-card rounded-2xl p-5">
-              <h3 className="text-sm font-medium text-foreground mb-3 flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-cyan-400" />
-                Fact Sheet
-              </h3>
-              <ScrollArea className="h-[300px]">
-                <div className="space-y-3">
-                  {factSheet.product_name && (
-                    <FactRow
-                      label="Product"
-                      value={factSheet.product_name}
-                    />
-                  )}
-                  {factSheet.value_proposition && (
-                    <FactRow
-                      label="Value Proposition"
-                      value={factSheet.value_proposition}
-                    />
-                  )}
-                  {factSheet.target_audience && (
-                    <FactRow
-                      label="Target Audience"
-                      value={factSheet.target_audience}
-                    />
-                  )}
-                  {factSheet.tone_and_positioning && (
-                    <FactRow
-                      label="Tone"
-                      value={factSheet.tone_and_positioning}
-                    />
-                  )}
-                  {factSheet.core_features && factSheet.core_features.length > 0 && (
-                    <div>
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">
-                        Core Features
-                      </p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {factSheet.core_features.map((f, i) => (
-                            <Badge
-                              key={i}
-                              variant="outline"
-                              className="text-[10px] border-primary/20 text-primary"
-                            >
-                              {f}
-                            </Badge>
-                          )
-                        )}
-                      </div>
-                    </div>
-                  )}
-                  {factSheet.ambiguous_statements && factSheet.ambiguous_statements.length > 0 && (
-                    <div>
-                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1 flex items-center gap-1">
-                        <AlertTriangle className="w-3 h-3 text-amber-400" />
-                        Ambiguous Statements
-                      </p>
-                      {factSheet.ambiguous_statements.map((a, i) => (
-                        <div
-                          key={i}
-                          className="p-2 rounded-lg bg-amber-500/5 border border-amber-500/10 text-xs mb-1.5"
-                        >
-                          <p className="text-amber-300">&quot;{a.statement}&quot;</p>
-                          <p className="text-muted-foreground mt-0.5">
-                            {a.reason}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </ScrollArea>
+      {/* ── Row 1: Source + Fact Sheet (2-col) ── */}
+      <div
+        className={`grid gap-5 ${hasFactSheet ? "lg:grid-cols-2" : "grid-cols-1"}`}
+      >
+        {/* Source Text */}
+        <div className="section-card overflow-hidden">
+          <div className="flex items-center gap-3 px-5 py-4 border-b border-border bg-muted/20">
+            <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
+              <FileText className="w-4 h-4 text-muted-foreground" />
             </div>
-          )}
+            <div>
+              <h2 className="text-sm font-semibold text-foreground">
+                Source Text
+              </h2>
+              <p className="text-xs text-muted-foreground">
+                Original input provided
+              </p>
+            </div>
+          </div>
+          <div className="px-5 py-4 max-h-[280px] overflow-y-auto">
+            <p className="text-sm text-foreground/80 leading-relaxed whitespace-pre-wrap">
+              {campaign.input_text}
+            </p>
+          </div>
         </div>
 
-        {/* Right: Outputs */}
-        <div className="space-y-4">
-          {drafts && (
-            <div className="glass-card rounded-2xl overflow-hidden">
-              <Tabs defaultValue="blog" className="w-full">
-                <div className="px-4 pt-3">
-                  <TabsList className="w-full bg-muted/50">
-                    <TabsTrigger
-                      value="blog"
-                      className="flex-1 gap-1.5 text-xs"
-                    >
-                      <FileText className="w-3.5 h-3.5" />
-                      Blog Post
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="social"
-                      className="flex-1 gap-1.5 text-xs"
-                    >
-                      <MessageSquare className="w-3.5 h-3.5" />
-                      Social
-                    </TabsTrigger>
-                    <TabsTrigger
-                      value="email"
-                      className="flex-1 gap-1.5 text-xs"
-                    >
-                      <Mail className="w-3.5 h-3.5" />
-                      Email
-                    </TabsTrigger>
-                  </TabsList>
-                </div>
+        {/* Fact Sheet (only if present) */}
+        {hasFactSheet && <FactSheetCard data={factSheet!} />}
+      </div>
 
-                <TabsContent value="blog" className="mt-0">
-                  <ScrollArea className="h-[400px]">
-                    <div className="p-5">
-                      <div className="flex justify-end mb-3">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 text-[10px] text-muted-foreground hover:text-primary"
-                          onClick={() =>
-                            handleCopy(drafts.blog_post)
-                          }
-                        >
-                          <Copy className="w-3 h-3 mr-1" />
-                          Copy
-                        </Button>
-                      </div>
-                      <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
-                        {drafts.blog_post}
-                      </p>
-                    </div>
-                  </ScrollArea>
-                </TabsContent>
+      {/* ── Blog Post ── */}
+      {drafts?.blog_post && (
+        <ContentSection
+          title="Blog Post"
+          subtitle="Long-form article ready to publish"
+          icon={<FileText className="w-5 h-5" />}
+          content={drafts.blog_post}
+          accentClass="text-primary bg-primary/10"
+        />
+      )}
 
-                <TabsContent value="social" className="mt-0">
-                  <ScrollArea className="h-[400px]">
-                    <div className="p-5 space-y-3">
-                      {drafts.social_thread?.map(
-                        (post: string, i: number) => (
-                          <div
-                            key={i}
-                            className="p-3 rounded-xl bg-muted/30 border border-border group"
-                          >
-                            <div className="flex items-center justify-between mb-1">
-                              <p className="text-[10px] text-muted-foreground font-medium">
-                                Post {i + 1}
-                              </p>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                className="h-5 px-1.5 text-[10px] text-muted-foreground hover:text-primary opacity-0 group-hover:opacity-100 transition-opacity"
-                                onClick={() => handleCopy(post)}
-                              >
-                                <Copy className="w-2.5 h-2.5" />
-                              </Button>
-                            </div>
-                            <p className="text-sm text-foreground leading-relaxed">
-                              {post}
-                            </p>
-                          </div>
-                        )
-                      )}
-                    </div>
-                  </ScrollArea>
-                </TabsContent>
+      {/* ── Social Thread ── */}
+      {drafts?.social_thread && drafts.social_thread.length > 0 && (
+        <SocialThreadCard posts={drafts.social_thread} />
+      )}
 
-                <TabsContent value="email" className="mt-0">
-                  <ScrollArea className="h-[400px]">
-                    <div className="p-5">
-                      <div className="flex justify-end mb-3">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 text-[10px] text-muted-foreground hover:text-primary"
-                          onClick={() =>
-                            handleCopy(drafts.email_teaser)
-                          }
-                        >
-                          <Copy className="w-3 h-3 mr-1" />
-                          Copy
-                        </Button>
-                      </div>
-                      <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
-                        {drafts.email_teaser}
-                      </p>
-                    </div>
-                  </ScrollArea>
-                </TabsContent>
-              </Tabs>
-            </div>
-          )}
+      {/* ── Email ── */}
+      {drafts?.email_teaser && (
+        <EmailCard
+          content={drafts.email_teaser}
+          productName={factSheet?.product_name}
+        />
+      )}
 
-          {/* Editor Review Summary */}
-          {review && (
-            <div className="glass-card rounded-2xl p-5">
-              <h3 className="text-sm font-medium text-foreground mb-3 flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-amber-400" />
-                Editor Review
-              </h3>
-              <div className="space-y-2">
-                {["blog_post", "social_thread", "email_teaser"].map(
-                  (piece) => {
-                    const r = (review as Record<string, Record<string, unknown>>)[
-                      piece
-                    ];
-                    if (!r) return null;
-                    return (
-                      <div
-                        key={piece}
-                        className="flex items-center gap-2 text-xs"
-                      >
-                        {r.approved ? (
-                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                        ) : (
-                          <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
-                        )}
-                        <span className="text-foreground capitalize">
-                          {piece.replace("_", " ")}
-                        </span>
-                        <span className="text-muted-foreground">
-                          {r.approved ? "Approved" : "Had revisions"}
-                        </span>
-                      </div>
-                    );
-                  }
-                )}
-              </div>
-            </div>
-          )}
+      {/* ── Editor Review ── */}
+      {review && <ReviewCard review={review} />}
 
-          {/* Export */}
+      {/* ── Export strip ── */}
+      <div className="section-card px-6 py-5">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h3 className="text-sm font-semibold text-foreground">
+              Export Campaign Kit
+            </h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Download as a PDF report or copy the raw JSON
+            </p>
+          </div>
           <div className="flex gap-2">
             <Button
               variant="outline"
               size="sm"
-              className="flex-1 gap-1.5 text-xs border-border hover:border-primary/30 hover:text-primary"
-              onClick={() =>
-                handleCopy(
-                  JSON.stringify(
-                    { input: campaign.input_text, ...campaign.output },
-                    null,
-                    2
-                  )
-                )
-              }
+              className="gap-2 font-medium"
+              onClick={handleCopyAll}
             >
               {copied ? (
-                <CheckCircle2 className="w-3.5 h-3.5" />
+                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
               ) : (
-                <Copy className="w-3.5 h-3.5" />
+                <Copy className="w-4 h-4" />
               )}
-              {copied ? "Copied!" : "Copy All"}
+              {copied ? "Copied!" : "Copy JSON"}
             </Button>
             <Button
-              variant="outline"
               size="sm"
-              className="flex-1 gap-1.5 text-xs border-border hover:border-primary/30 hover:text-primary"
-              onClick={handleDownload}
+              className="gap-2 font-medium bg-primary text-primary-foreground hover:bg-primary/90"
+              onClick={() => downloadCampaignAsPdf(campaign)}
             >
-              <Download className="w-3.5 h-3.5" />
-              Download Kit
+              <Download className="w-4 h-4" />
+              Download PDF
             </Button>
           </div>
         </div>

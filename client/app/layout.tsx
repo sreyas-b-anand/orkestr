@@ -22,19 +22,20 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${inter.variable} dark h-full antialiased`}>
-      <body className="min-h-full flex flex-col font-[family-name:var(--font-inter)]">
+    <html lang="en" className={`${inter.variable} h-full antialiased`}>
+      <body suppressHydrationWarning className="min-h-full flex flex-col font-[family-name:var(--font-inter)]">
         <AuthProvider>
           <TooltipProvider>
             {children}
             <Toaster
-              theme="dark"
               position="bottom-right"
               toastOptions={{
                 style: {
-                  background: "oklch(0.17 0.008 285)",
-                  border: "1px solid oklch(0.25 0.02 280)",
-                  color: "oklch(0.95 0.01 280)",
+                  background: "var(--card)",
+                  border: "1px solid var(--border)",
+                  color: "var(--foreground)",
+                  boxShadow:
+                    "0 4px 12px oklch(0 0 0 / 10%), 0 1px 3px oklch(0 0 0 / 6%)",
                 },
               }}
             />

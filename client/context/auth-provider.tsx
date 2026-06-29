@@ -32,18 +32,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
+    // Attempt to get the current session — gracefully handle stale/invalid tokens
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error) {
+        // Stale refresh token or invalid session — clear state silently
+        console.warn("[Auth] Session error, clearing state:", error.message);
+        setSession(null);
+        setUser(null);
+      } else {
+        setSession(session);
+        setUser(session?.user ?? null);
+      }
       setLoading(false);
     });
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
+      // Ensure loading clears on any auth event
+      setLoading(false);
     });
 
     return () => subscription.unsubscribe();

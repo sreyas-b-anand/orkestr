@@ -4,31 +4,31 @@ import React, { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
 import { generateCampaign } from "@/lib/api";
-import { useWebSocket}from "@/hooks/use-websocket";
+import { useWebSocket } from "@/hooks/use-websocket";
 import { ChatBubble } from "@/components/ChatBubble";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { ContentSection } from "@/components/campaign/ContentSection";
+import { SocialThreadCard } from "@/components/campaign/SocialThreadCard";
+import { FactSheetCard } from "@/components/campaign/FactSheetCard";
+import { ReviewCard } from "@/components/campaign/ReviewCard";
+import { EmailCard } from "@/components/campaign/EmailCard";
+import { downloadCampaignAsPdf } from "@/lib/export-pdf";
 import {
-  Sparkles,
   Loader2,
   Send,
-  Copy,
   Download,
-  CheckCircle2,
   Bot,
+  Wand2,
   FileText,
-  Mail,
-  MessageSquare,
+  IterationCcw,
 } from "lucide-react";
-
+import { ReviewSection, Campaign } from "@/types/campaign";
 
 export default function CreateCampaignPage() {
   const [sourceText, setSourceText] = useState("");
   const [generating, setGenerating] = useState(false);
   const [result, setResult] = useState<Record<string, unknown> | null>(null);
-  const [copied, setCopied] = useState(false);
 
   const { messages, connect, disconnect, clearMessages } = useWebSocket();
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -42,16 +42,14 @@ export default function CreateCampaignPage() {
     setGenerating(true);
     setResult(null);
     clearMessages();
-
     connect();
 
     try {
       const res = await generateCampaign(sourceText.trim());
       setResult(res.output);
-      toast.success("Campaign generated successfully!");
+      toast.success("Campaign generated successfully");
     } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : "Generation failed";
+      const message = err instanceof Error ? err.message : "Generation failed";
       toast.error(message);
     } finally {
       setGenerating(false);
@@ -59,288 +57,273 @@ export default function CreateCampaignPage() {
     }
   };
 
-  const handleCopy = async (content: string) => {
-    await navigator.clipboard.writeText(content);
-    setCopied(true);
-    toast.success("Copied to clipboard");
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const handleDownload = () => {
-    if (!result) return;
-    const blob = new Blob([JSON.stringify(result, null, 2)], {
-      type: "application/json",
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `campaign-${Date.now()}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast.success("Downloaded campaign kit");
-  };
-
   const drafts = result?.drafts as
     | { blog_post: string; social_thread: string[]; email_teaser: string }
     | undefined;
 
+  const factSheet = result?.fact_sheet as
+    | {
+        product_name?: string;
+        value_proposition?: string;
+        target_audience?: string;
+        tone_and_positioning?: string;
+        core_features?: string[];
+        ambiguous_statements?: { statement: string; reason: string }[];
+      }
+    | undefined;
+
+  const review = result?.review as ReviewSection | undefined;
+  const status = result?.status as string | undefined;
+  const iterations = result?.iterations as number | undefined;
+
+  // Build a minimal Campaign-like object for PDF export
+  const campaignForPdf: Campaign | null = result
+    ? ({
+        id: "",
+        input_text: sourceText,
+        status: (status || "pending") as Campaign["status"],
+        iterations: iterations ?? 0,
+        created_at: new Date().toISOString(),
+        output: result as Campaign["output"],
+      } as Campaign)
+    : null;
+
   return (
     <div>
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold tracking-tight text-foreground">
-          Create Campaign
-        </h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Paste your product text and watch AI agents collaborate in real time
-        </p>
+      {/* Page header */}
+      <div className="flex items-center gap-3 mb-8">
+        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+          <Wand2 className="w-5 h-5 text-primary" />
+        </div>
+        <div>
+          <h1 className="text-xl font-bold tracking-tight text-foreground">
+            Create Campaign
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Paste your product text and watch AI agents collaborate in real time
+          </p>
+        </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        
-        <div className="space-y-4">
-          {/* Source text input */}
-          <div className="glass-card rounded-2xl p-5">
-            <label className="text-sm font-medium text-foreground mb-3 block">
+      {/* Input + Agent Feed */}
+      <div className="grid gap-6 lg:grid-cols-2 mb-6">
+        {/* Left: Source input */}
+        <div className="section-card p-5 space-y-4">
+          <div>
+            <label className="text-sm font-semibold text-foreground block mb-1">
               Source Text
             </label>
-            <textarea
-              value={sourceText}
-              onChange={(e) => setSourceText(e.target.value)}
-              placeholder="Paste your product description, marketing brief, or raw text here…"
-              rows={8}
-              disabled={generating}
-              className="w-full bg-muted/30 rounded-xl border border-border p-4 text-sm text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-1 focus:ring-primary/40 focus:border-primary/40 transition-all disabled:opacity-50"
-            />
-            <Button
-              onClick={handleGenerate}
-              disabled={generating || !sourceText.trim()}
-              className="mt-4 w-full bg-primary text-primary-foreground hover:bg-primary/90 glow-primary gap-2 h-11"
-            >
-              {generating ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Generating…
-                </>
-              ) : (
-                <>
-                  <Send className="w-4 h-4" />
-                  Generate Campaign
-                </>
-              )}
-            </Button>
+            <p className="text-xs text-muted-foreground">
+              Paste your product description, marketing brief, or raw text
+            </p>
           </div>
-
-          {/* Live Chat Feed */}
-          <div className="glass-card rounded-2xl overflow-hidden">
-            <div className="px-5 py-3 border-b border-border flex items-center gap-2">
-              <Bot className="w-4 h-4 text-primary" />
-              <span className="text-sm font-medium text-foreground">
-                Agent Chat Feed
-              </span>
-              {generating && (
-                <span className="ml-auto flex items-center gap-1.5 text-[10px] text-emerald-400">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                  Live
-                </span>
-              )}
-            </div>
-            <ScrollArea className="h-87.5">
-              <div className="p-4 space-y-3">
-                {messages.length === 0 && !generating && (
-                  <p className="text-xs text-muted-foreground text-center py-12">
-                    Agent conversations will appear here when you generate a
-                    campaign
-                  </p>
-                )}
-                <AnimatePresence mode="popLayout">
-                  {messages.map((msg, i) => (
-                    <ChatBubble key={i} message={msg} />
-                  ))}
-                </AnimatePresence>
-                {generating && (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="flex items-center gap-2 px-3 py-2"
-                  >
-                    <div className="flex gap-1">
-                      {[0, 1, 2].map((j) => (
-                        <motion.span
-                          key={j}
-                          className="w-1.5 h-1.5 rounded-full bg-primary"
-                          animate={{ opacity: [0.3, 1, 0.3] }}
-                          transition={{
-                            repeat: Infinity,
-                            duration: 1,
-                            delay: j * 0.2,
-                          }}
-                        />
-                      ))}
-                    </div>
-                    <span className="text-[10px] text-muted-foreground">
-                      Agents working…
-                    </span>
-                  </motion.div>
-                )}
-                <div ref={chatEndRef} />
-              </div>
-            </ScrollArea>
-          </div>
+          <textarea
+            value={sourceText}
+            onChange={(e) => setSourceText(e.target.value)}
+            placeholder="e.g. Our new AI-powered task manager helps remote teams collaborate effortlessly. With real-time sync, smart prioritisation…"
+            rows={10}
+            disabled={generating}
+            className="w-full bg-background rounded-xl border border-border p-4 text-sm text-foreground placeholder:text-muted-foreground resize-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all disabled:opacity-50 leading-relaxed"
+          />
+          <Button
+            onClick={handleGenerate}
+            disabled={generating || !sourceText.trim()}
+            className="w-full gap-2 bg-primary text-primary-foreground hover:bg-primary/90 font-semibold h-11 shadow-sm"
+          >
+            {generating ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Generating campaign…
+              </>
+            ) : (
+              <>
+                <Send className="w-4 h-4" />
+                Generate Campaign
+              </>
+            )}
+          </Button>
         </div>
 
-        <div className="space-y-4">
-          {!result && !generating && (
-            <div className="glass-card rounded-2xl p-5 flex flex-col items-center justify-center py-20 text-center">
-              <div className="w-14 h-14 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-4">
-                <Sparkles className="w-6 h-6 text-primary" />
+        {/* Right: Agent feed */}
+        <div className="section-card overflow-hidden flex flex-col">
+          <div className="flex items-center gap-3 px-5 py-4 border-b border-border shrink-0">
+            <div className="w-8 h-8 rounded-xl bg-muted flex items-center justify-center">
+              <Bot className="w-4 h-4 text-muted-foreground" />
+            </div>
+            <div className="flex-1">
+              <span className="text-sm font-semibold text-foreground">
+                Agent Activity Feed
+              </span>
+              <p className="text-xs text-muted-foreground">
+                Live multi-agent collaboration
+              </p>
+            </div>
+            {generating && (
+              <span className="flex items-center gap-1.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded-full">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                Live
+              </span>
+            )}
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-[320px] max-h-[400px]">
+            {messages.length === 0 && !generating && (
+              <div className="flex flex-col items-center justify-center h-full py-12 text-center">
+                <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center mb-3">
+                  <Bot className="w-5 h-5 text-muted-foreground" />
+                </div>
+                <p className="text-sm font-medium text-muted-foreground">
+                  No activity yet
+                </p>
+                <p className="text-xs text-muted-foreground/70 mt-1 max-w-[200px]">
+                  Agent conversations will appear here when you generate a
+                  campaign
+                </p>
               </div>
-              <h3 className="text-sm font-medium text-foreground mb-1">
-                Campaign output
-              </h3>
-              <p className="text-xs text-muted-foreground max-w-[240px]">
-                Your generated blog post, social thread, and email teaser will
-                appear here
-              </p>
-            </div>
-          )}
+            )}
 
-          {generating && !result && (
-            <div className="glass-card rounded-2xl p-5 flex flex-col items-center justify-center py-20 text-center">
-              <Loader2 className="w-8 h-8 text-primary animate-spin mb-4" />
-              <p className="text-sm text-muted-foreground">
-                AI agents are working on your campaign…
-              </p>
-            </div>
-          )}
+            <AnimatePresence mode="popLayout">
+              {messages.map((msg, i) => (
+                <ChatBubble key={i} message={msg} isGenerating={generating} />
+              ))}
+            </AnimatePresence>
 
-          {result && drafts && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="space-y-4"
-            >
-              {/* Status badge */}
-              <div className="flex items-center gap-3">
-                <Badge
-                  variant="outline"
-                  className={`${
-                    (result.status as string) === "approved"
-                      ? "bg-emerald-500/15 text-emerald-400 border-emerald-500/25"
-                      : "bg-amber-500/15 text-amber-400 border-amber-500/25"
-                  } text-xs font-semibold uppercase tracking-wider`}
-                >
-                  {(result.status as string) || "complete"}
-                </Badge>
+            {/* Typing dots — only while generating AND before result arrives */}
+            {generating && !result && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="flex items-center gap-2 px-1 py-2"
+              >
+                <div className="flex gap-1">
+                  {[0, 1, 2].map((j) => (
+                    <motion.span
+                      key={j}
+                      className="w-1.5 h-1.5 rounded-full bg-primary"
+                      animate={{ opacity: [0.3, 1, 0.3] }}
+                      transition={{
+                        repeat: Infinity,
+                        duration: 1,
+                        delay: j * 0.2,
+                      }}
+                    />
+                  ))}
+                </div>
                 <span className="text-xs text-muted-foreground">
-                  {result.iterations as number} iterations
+                  Agents working…
                 </span>
-              </div>
-
-              {/* Tabs for outputs */}
-              <div className="glass-card rounded-2xl overflow-hidden">
-                <Tabs defaultValue="blog" className="w-full">
-                  <div className="px-4 pt-3">
-                    <TabsList className="w-full bg-muted/50">
-                      <TabsTrigger
-                        value="blog"
-                        className="flex-1 gap-1.5 text-xs"
-                      >
-                        <FileText className="w-3.5 h-3.5" />
-                        Blog Post
-                      </TabsTrigger>
-                      <TabsTrigger
-                        value="social"
-                        className="flex-1 gap-1.5 text-xs"
-                      >
-                        <MessageSquare className="w-3.5 h-3.5" />
-                        Social
-                      </TabsTrigger>
-                      <TabsTrigger
-                        value="email"
-                        className="flex-1 gap-1.5 text-xs"
-                      >
-                        <Mail className="w-3.5 h-3.5" />
-                        Email
-                      </TabsTrigger>
-                    </TabsList>
-                  </div>
-
-                  <TabsContent value="blog" className="mt-0">
-                    <ScrollArea className="h-[350px]">
-                      <div className="p-5">
-                        <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
-                          {drafts.blog_post}
-                        </p>
-                      </div>
-                    </ScrollArea>
-                  </TabsContent>
-
-                  <TabsContent value="social" className="mt-0">
-                    <ScrollArea className="h-[350px]">
-                      <div className="p-5 space-y-3">
-                        {drafts.social_thread?.map(
-                          (post: string, i: number) => (
-                            <div
-                              key={i}
-                              className="p-3 rounded-xl bg-muted/30 border border-border"
-                            >
-                              <p className="text-[10px] text-muted-foreground mb-1 font-medium">
-                                Post {i + 1}
-                              </p>
-                              <p className="text-sm text-foreground leading-relaxed">
-                                {post}
-                              </p>
-                            </div>
-                          )
-                        )}
-                      </div>
-                    </ScrollArea>
-                  </TabsContent>
-
-                  <TabsContent value="email" className="mt-0">
-                    <ScrollArea className="h-[350px]">
-                      <div className="p-5">
-                        <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
-                          {drafts.email_teaser}
-                        </p>
-                      </div>
-                    </ScrollArea>
-                  </TabsContent>
-                </Tabs>
-              </div>
-
-              {/* Export actions */}
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex-1 gap-1.5 text-xs border-border hover:border-primary/30 hover:text-primary"
-                  onClick={() =>
-                    handleCopy(JSON.stringify(drafts, null, 2))
-                  }
-                >
-                  {copied ? (
-                    <CheckCircle2 className="w-3.5 h-3.5" />
-                  ) : (
-                    <Copy className="w-3.5 h-3.5" />
-                  )}
-                  {copied ? "Copied!" : "Copy All"}
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex-1 gap-1.5 text-xs border-border hover:border-primary/30 hover:text-primary"
-                  onClick={handleDownload}
-                >
-                  <Download className="w-3.5 h-3.5" />
-                  Download JSON
-                </Button>
-              </div>
-            </motion.div>
-          )}
+              </motion.div>
+            )}
+            <div ref={chatEndRef} />
+          </div>
         </div>
       </div>
+
+      {/* Generating placeholder */}
+      {generating && !result && (
+        <div className="section-card p-10 flex flex-col items-center justify-center text-center">
+          <Loader2 className="w-8 h-8 text-primary animate-spin mb-4" />
+          <p className="text-sm font-medium text-foreground mb-1">
+            AI agents are crafting your campaign
+          </p>
+          <p className="text-xs text-muted-foreground">
+            This usually takes 30–90 seconds
+          </p>
+        </div>
+      )}
+
+      {/* Results */}
+      {result && (
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+          className="space-y-6"
+        >
+          {/* Result header */}
+          <div className="section-card px-6 py-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="text-base font-bold text-foreground">
+                  Generated Campaign
+                </h2>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Review your AI-generated content below
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+                {status && <StatusBadge status={status} size="md" />}
+                {iterations !== undefined && (
+                  <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <IterationCcw className="w-3.5 h-3.5" />
+                    {iterations} iteration{iterations !== 1 ? "s" : ""}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Fact Sheet */}
+          {factSheet &&
+            (factSheet.product_name ||
+              factSheet.value_proposition ||
+              factSheet.target_audience) && (
+              <FactSheetCard data={factSheet} />
+            )}
+
+          {/* Blog Post */}
+          {drafts?.blog_post && (
+            <ContentSection
+              title="Blog Post"
+              subtitle="Long-form article ready to publish"
+              icon={<FileText className="w-5 h-5" />}
+              content={drafts.blog_post}
+              accentClass="text-primary bg-primary/10"
+            />
+          )}
+
+          {/* Social Thread */}
+          {drafts?.social_thread && drafts.social_thread.length > 0 && (
+            <SocialThreadCard posts={drafts.social_thread} />
+          )}
+
+          {/* Email */}
+          {drafts?.email_teaser && (
+            <EmailCard
+              content={drafts.email_teaser}
+              productName={factSheet?.product_name}
+            />
+          )}
+
+          {/* Review */}
+          {review && <ReviewCard review={review} />}
+
+          {/* Export */}
+          <div className="section-card px-6 py-5">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <div>
+                <h3 className="text-sm font-semibold text-foreground">
+                  Export Campaign Kit
+                </h3>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Download as a PDF report
+                </p>
+              </div>
+              {campaignForPdf && (
+                <Button
+                  size="sm"
+                  className="gap-2 font-medium bg-primary text-primary-foreground hover:bg-primary/90"
+                  onClick={() => downloadCampaignAsPdf(campaignForPdf)}
+                >
+                  <Download className="w-4 h-4" />
+                  Download PDF
+                </Button>
+              )}
+            </div>
+          </div>
+        </motion.div>
+      )}
     </div>
   );
 }

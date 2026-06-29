@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect } from "react";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useAuth } from "@/context/auth-provider";
@@ -38,20 +39,33 @@ export default function DashboardLayout({
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
+      {/* Desktop sidebar */}
       <aside className="hidden lg:flex w-64 shrink-0 border-r border-sidebar-border">
         <Sidebar />
       </aside>
 
+      {/* Mobile top bar + sheet */}
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-        <div className="lg:hidden fixed top-0 left-0 right-0 z-40 h-14 bg-background/80 backdrop-blur-lg border-b border-border flex items-center px-4">
+        <div className="lg:hidden fixed top-0 left-0 right-0 z-40 h-14 bg-background/90 backdrop-blur-lg border-b border-border flex items-center px-4 gap-3">
           <SheetTrigger asChild>
             <button className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
               <Menu className="w-5 h-5" />
             </button>
           </SheetTrigger>
-          <span className="ml-3 text-sm font-semibold gradient-text">
-            Orkestr
-          </span>
+          <div className="flex items-center gap-2">
+            <div className="w-7 h-7 rounded-lg overflow-hidden border border-border">
+              <Image
+                src="/logo.jpg"
+                alt="Orkestr"
+                width={28}
+                height={28}
+                className="w-full h-full object-cover"
+              />
+            </div>
+            <span className="text-sm font-semibold text-foreground">
+              Orkestr
+            </span>
+          </div>
         </div>
         <SheetContent
           side="left"
