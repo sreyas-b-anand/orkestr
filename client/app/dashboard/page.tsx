@@ -39,7 +39,6 @@ export default function DashboardPage() {
     try {
       const res = await getCampaigns();
       setCampaigns(res.campaigns.campaigns || []);
-      console.log("Fetched campaigns:", res.campaigns.campaigns);
     } catch (err ) {
       toast.error(err instanceof Error ? err.message : "Failed to load campaigns");
     } finally {

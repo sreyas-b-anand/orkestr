@@ -10,8 +10,8 @@ services:
     env_file:
       - ./server/.env
     environment:
-      - FRONTEND_URL=http://localhost:3000
-      - REDIS_URL=redis://redis:6379
+      - FRONTEND_URL=${FRONTEND_URL}
+      - REDIS_URL=${REDIS_URL}
     depends_on:
       - redis
     restart: unless-stopped
