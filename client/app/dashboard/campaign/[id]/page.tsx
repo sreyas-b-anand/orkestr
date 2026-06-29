@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Campaign } from "@/types/campaign";
 import {
   ArrowLeft,
   Copy,
@@ -25,25 +26,6 @@ import {
   AlertTriangle,
 } from "lucide-react";
 
-type CampaignData = {
-  id: string;
-  input_text: string;
-  output: {
-    fact_sheet: Record<string, unknown>;
-    drafts: {
-      blog_post: string;
-      social_thread: string[];
-      email_teaser: string;
-    };
-    review: Record<string, unknown>;
-    status: string;
-    iterations: number;
-  };
-  status: string;
-  iterations: number;
-  created_at: string;
-};
-
 export default function CampaignDetailPage({
   params,
 }: {
@@ -51,7 +33,7 @@ export default function CampaignDetailPage({
 }) {
   const { id } = use(params);
   const router = useRouter();
-  const [campaign, setCampaign] = useState<CampaignData | null>(null);
+  const [campaign, setCampaign] = useState< Campaign | null>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
 
@@ -60,7 +42,7 @@ export default function CampaignDetailPage({
       try {
         const res = await getCampaign(id);
         if (res.status && res.campaign) {
-          setCampaign(res.campaign as CampaignData);
+          setCampaign(res.campaign as Campaign);
         } else {
           toast.error("Campaign not found");
           router.replace("/dashboard");
@@ -167,7 +149,7 @@ export default function CampaignDetailPage({
           </span>
           <span className="flex items-center gap-1 text-xs text-muted-foreground">
             <Calendar className="w-3 h-3" />
-            {new Date(campaign.created_at).toLocaleDateString()}
+            {campaign?.created_at && new Date(campaign.created_at).toLocaleDateString()}
           </span>
         </div>
       </div>

@@ -2,21 +2,27 @@ import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from routes import model_router, campaign_router, ws_router
-from middlewares import AuthMiddleware
+from middlewares import AuthMiddleware , RateLimiterMiddleware
 from dotenv import load_dotenv
 
 load_dotenv()
 
 app = FastAPI(title="Orkestr FastAPI")
 
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[os.getenv("FRONTEND_URL", "http://localhost:3000")],
+    allow_origins=[
+        os.getenv("FRONTEND_URL"),
+        "http://127.0.0.1:3000",
+        "http://localhost:3000"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+app.add_middleware(RateLimiterMiddleware)
 app.add_middleware(AuthMiddleware)
 
 app.include_router(model_router, prefix="/api/v1")

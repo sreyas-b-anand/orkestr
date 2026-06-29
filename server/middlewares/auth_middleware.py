@@ -3,7 +3,12 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi import Request
 from config import SupabaseConfig
 
-
+CORS_HEADERS = {
+    "Access-Control-Allow-Origin": "http://localhost:3000",
+    "Access-Control-Allow-Credentials": "true",
+    "Access-Control-Allow-Methods": "*",
+    "Access-Control-Allow-Headers": "*",
+}
 class AuthMiddleware(BaseHTTPMiddleware):
 
     def __init__(self, app):
@@ -21,7 +26,7 @@ class AuthMiddleware(BaseHTTPMiddleware):
         auth_header = request.headers.get("Authorization")
 
         if not auth_header or not auth_header.startswith("Bearer "):
-            return JSONResponse(status_code=401, content={"detail": "Unauthorized"})
+            return JSONResponse(status_code=401, content={"detail": f"Unauthorized"} , headers=CORS_HEADERS)
 
         token = auth_header.split(" ")[1]
 
