@@ -1,5 +1,5 @@
 from pydantic import BaseModel 
 
-class TextRequest(BaseModel):
+class OrkestrRequest(BaseModel):
     text: str
   

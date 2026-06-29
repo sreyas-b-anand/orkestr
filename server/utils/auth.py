@@ -1,7 +1,5 @@
-import os
-from fastapi import HTTPException , Request
 
-SUPABASE_JWT_SECRET = os.getenv("SUPABASE_JWT_SECRET")
+from fastapi import HTTPException , Request
 
 def get_current_user(request: Request):
     user = request.state.user

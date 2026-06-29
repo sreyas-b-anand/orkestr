@@ -1,12 +1,10 @@
 import json
-import os
 from groq import AsyncGroq, APIError
 from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception_type
-from dotenv import load_dotenv
+from config import Settings
 
-load_dotenv()
-
-api_key = os.getenv("GROQ_API_KEY")
+settings = Settings()
+api_key = settings.groq_api_key
 
 if not api_key:
     raise ValueError("GROQ_API_KEY not found in environment")

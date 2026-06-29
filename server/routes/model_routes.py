@@ -1,22 +1,24 @@
 from fastapi import APIRouter , Depends
 from utils import get_current_user
 from pipelines.agent_pipeline import AgentPipeline
-from schemas.requests import TextRequest
+from schemas import OrkestrRequest , OrkestrResponse
+from config import redis_instance
 model_router = APIRouter()
 
 ap = AgentPipeline()
 
-@model_router.post("/generate")
-async def generate_content(request: TextRequest , user=Depends(get_current_user)):
+@model_router.post("/generate" , response_model=OrkestrResponse)
+async def generate_content(request: OrkestrRequest , user=Depends(get_current_user)):
     
-    text = request.text
     result = await ap.run(
         request.text,
         user.id
     )
+    
+    if result:
+        await redis_instance.delete(f"campaigns:user:{user.id}")
 
-    return {
-        "input": request.text,
-        "output": result
-    }
-
+    return OrkestrResponse(
+        input={"text": request.text},
+        output=result
+    )

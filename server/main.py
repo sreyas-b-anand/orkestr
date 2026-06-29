@@ -1,11 +1,10 @@
-import os
-from fastapi import FastAPI
+from fastapi import FastAPI , status
 from fastapi.middleware.cors import CORSMiddleware
 from routes import model_router, campaign_router, ws_router
 from middlewares import AuthMiddleware , RateLimiterMiddleware
-from dotenv import load_dotenv
+from config import Settings
 
-load_dotenv()
+settings = Settings()
 
 app = FastAPI(title="Orkestr FastAPI")
 
@@ -13,9 +12,9 @@ app = FastAPI(title="Orkestr FastAPI")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        os.getenv("FRONTEND_URL"),
+        settings.frontend_url,
         "http://127.0.0.1:3000",
-        "http://localhost:3000"
+        "http://localhost:3000",
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -32,4 +31,4 @@ app.include_router(ws_router, prefix="/api/v1")
 
 @app.get("/health")
 async def health():
-    return {"status": "ok"}
+    return status.HTTP_200_OK

@@ -1,6 +1,5 @@
 
 from config import SupabaseConfig
-from supabase import Client
 import logging
 from uuid import UUID
 logger = logging.getLogger(__name__)

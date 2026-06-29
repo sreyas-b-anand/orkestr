@@ -1,5 +1,5 @@
-from pydantic import BaseModel
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
+from pydantic import BaseModel, ConfigDict
 
 class AmbiguousStatement(BaseModel):
     statement: str
@@ -7,12 +7,14 @@ class AmbiguousStatement(BaseModel):
 
 
 class FactSchema(BaseModel):
-    product_name: Optional[str]
-    core_features: List[str]
-    technical_specs: Dict[str, str]  
-    target_audience: Optional[str]
-    value_proposition: Optional[str]
-    key_stats_or_numbers: List[str]
-    tone_and_positioning: Optional[str]
-    ambiguous_statements: List[AmbiguousStatement]
-    source_summary: str
+    model_config = ConfigDict(extra="ignore")
+
+    product_name: Optional[str] = None
+    core_features: List[str] = []
+    technical_specs: Dict[str, Any] = {}   # FIXED
+    target_audience: Optional[str] = None
+    value_proposition: Optional[str] = None
+    key_stats_or_numbers: List[str] = []
+    tone_and_positioning: Optional[str] = None
+    ambiguous_statements: List[AmbiguousStatement] = []
+    source_summary: str = ""
