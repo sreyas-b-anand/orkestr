@@ -1,25 +1,23 @@
 const API_BASE = process.env.NEXT_PUBLIC_BACKEND_URL;
 
-import { Campaign, GetCampaignsResponse } from "@/types/campaign";
+import { Campaign, GetCampaignsResponse, GenerateResponse } from "@/types/campaign";
 import { supabase } from "@/lib/supabase";
 
 async function apiFetch<T = unknown>(
   path: string,
   options: RequestInit = {},
 ): Promise<T> {
-  
-  
   const session = await supabase.auth.getSession();
   const token = session.data.session?.access_token;
 
-  if (!token){
+  if (!token) {
     throw new Error("User is not authenticated");
   }
 
   const res = await fetch(`${API_BASE}${path}`, {
     headers: {
       "Content-Type": "application/json",
-      ...(token && { "Authorization": `Bearer ${token}` }),
+      ...(token && { Authorization: `Bearer ${token}` }),
       ...options.headers,
     },
     ...options,
@@ -56,12 +54,10 @@ export async function deleteCampaign(id: string) {
   });
 }
 
-export async function generateCampaign(text: string) {
-  return apiFetch<{
-    input: string;
-    output: Campaign["output"];
-  }>("/api/v1/generate", {
+/** POST /generate — server expects { campaignName, text } */
+export async function generateCampaign(campaignName: string, text: string) {
+  return apiFetch<GenerateResponse>("/api/v1/generate", {
     method: "POST",
-    body: JSON.stringify({ text }),
+    body: JSON.stringify({ campaignName, text }),
   });
 }

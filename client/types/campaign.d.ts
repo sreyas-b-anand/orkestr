@@ -37,10 +37,21 @@ export type Output = {
 export type Campaign = {
   id: string;
   input_text: string;
+  /** Campaign name as provided at creation time (stored in input or top-level) */
+  campaign_name?: string;
   output: Output;
   status: "approved" | "rejected" | "pending";
   iterations: number;
   created_at: string | null;
 };
 
-export type { Campaign, GetCampaignsResponse, Output };
+/** Shape returned by POST /generate */
+export type GenerateResponse = {
+  input: {
+    campaignName: string;
+    text: string;
+  };
+  output: Output;
+};
+
+export type { Campaign, GetCampaignsResponse, Output, GenerateResponse };

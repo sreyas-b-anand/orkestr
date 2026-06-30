@@ -140,8 +140,8 @@ export default function CampaignDetailPage({
       <div className="section-card px-6 py-5">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h1 className="text-xl font-bold text-foreground mb-2">
-              Campaign Report
+            <h1 className="text-2xl font-bold text-foreground mb-1">
+              {campaign.campaign_name || "Campaign Report"}
             </h1>
             <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground">
               <span className="flex items-center gap-1.5">
@@ -202,14 +202,17 @@ export default function CampaignDetailPage({
 
       {/* ── Social Thread ── */}
       {drafts?.social_thread && drafts.social_thread.length > 0 && (
-        <SocialThreadCard posts={drafts.social_thread} />
+        <SocialThreadCard
+          posts={drafts.social_thread}
+          campaignName={campaign.campaign_name}
+        />
       )}
 
       {/* ── Email ── */}
       {drafts?.email_teaser && (
         <EmailCard
           content={drafts.email_teaser}
-          productName={factSheet?.product_name}
+          productName={campaign.campaign_name || factSheet?.product_name}
         />
       )}
 
@@ -224,7 +227,7 @@ export default function CampaignDetailPage({
               Export Campaign Kit
             </h3>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Download as a PDF report or copy the raw JSON
+              Download as an HTML report or copy the raw JSON
             </p>
           </div>
           <div className="flex gap-2">
@@ -244,10 +247,10 @@ export default function CampaignDetailPage({
             <Button
               size="sm"
               className="gap-2 font-medium bg-primary text-primary-foreground hover:bg-primary/90"
-              onClick={() => downloadCampaignAsPdf(campaign)}
+              onClick={() => void downloadCampaignAsPdf(campaign)}
             >
               <Download className="w-4 h-4" />
-              Download PDF
+              Download Report
             </Button>
           </div>
         </div>

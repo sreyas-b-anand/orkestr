@@ -9,9 +9,6 @@ services:
       - "8000:8000"
     env_file:
       - ./server/.env
-    environment:
-      - FRONTEND_URL=${FRONTEND_URL}
-      - REDIS_URL=${REDIS_URL}
     depends_on:
       - redis
     restart: unless-stopped

@@ -13,14 +13,14 @@ class CampaignService:
             campaigns = self.supabase.client.table("campaigns").select("*").eq("user_id", str(user_id)).execute()
 
             if not campaigns or not campaigns.data:
-                logger.warning("No campaigns found in the database.")
+                # logger.warning("No campaigns found in the database.")
                 return {"campaigns": [] , "status" : True , "message" : "No campaigns found"}
 
             return {"campaigns": campaigns.data, "status": True , "message" : "Campaigns fetched successfully"}
 
 
         except Exception as e:
-            logger.error("Error fetching campaigns: %s", e)
+            # logger.error("Error fetching campaigns: %s", e)
             return {"campaigns": [], "status": False, "message": "Error fetching campaigns"}
 
     async def get_campaign_by_id(self, campaign_id : UUID, user_id: UUID):
@@ -28,13 +28,13 @@ class CampaignService:
             campaign = self.supabase.client.table("campaigns").select("*").eq("id", str(campaign_id)).eq("user_id", str(user_id)).execute()
 
             if not campaign or not campaign.data:
-                logger.warning("Campaign with ID %d not found.", campaign_id)
+                # logger.warning("Campaign with ID %d not found.", campaign_id)
                 return {"campaign": None, "status": False, "message": "Campaign not found"}
 
             return {"campaign": campaign.data[0], "status": True}
 
         except Exception as e:
-            logger.error("Error fetching campaign by ID: %s", e)
+            # logger.error("Error fetching campaign by ID: %s", e)
             return {"campaign": None, "status": False, "message": "Error fetching campaign"}
 
     async def delete_campaign(self, campaign_id : UUID, user_id: UUID):
@@ -42,12 +42,12 @@ class CampaignService:
             response = self.supabase.client.table("campaigns").delete().eq("id", str(campaign_id)).eq("user_id", str(user_id)).execute()
 
             if response.data is not None:
-                logger.info("Campaign with ID %s deleted successfully.", campaign_id)
+                # logger.info("Campaign with ID %s deleted successfully.", campaign_id)
                 return {"status": True, "message": "Campaign deleted successfully"}
             else:
-                logger.warning("Failed to delete campaign with ID %s.", campaign_id)
+                # logger.warning("Failed to delete campaign with ID %s.", campaign_id)
                 return {"status": False, "message": "Failed to delete campaign"}
 
         except Exception as e:
-            logger.error("Error deleting campaign: %s", e)
+            # logger.error("Error deleting campaign: %s", e)
             return {"status": False, "message": "Error deleting campaign"}

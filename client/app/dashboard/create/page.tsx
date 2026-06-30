@@ -19,13 +19,14 @@ import {
   Send,
   Download,
   Bot,
-  Wand2,
+  Megaphone,
   FileText,
   IterationCcw,
 } from "lucide-react";
 import { ReviewSection, Campaign } from "@/types/campaign";
 
 export default function CreateCampaignPage() {
+  const [campaignName, setCampaignName] = useState("");
   const [sourceText, setSourceText] = useState("");
   const [generating, setGenerating] = useState(false);
   const [result, setResult] = useState<Record<string, unknown> | null>(null);
@@ -34,6 +35,10 @@ export default function CreateCampaignPage() {
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const handleGenerate = async () => {
+    if (!campaignName.trim()) {
+      toast.error("Please enter a campaign or product name");
+      return;
+    }
     if (!sourceText.trim()) {
       toast.error("Please enter source text");
       return;
@@ -45,7 +50,7 @@ export default function CreateCampaignPage() {
     connect();
 
     try {
-      const res = await generateCampaign(sourceText.trim());
+      const res = await generateCampaign(campaignName.trim(), sourceText.trim());
       setResult(res.output);
       toast.success("Campaign generated successfully");
     } catch (err: unknown) {
@@ -81,6 +86,7 @@ export default function CreateCampaignPage() {
     ? ({
         id: "",
         input_text: sourceText,
+        campaign_name: campaignName || undefined,
         status: (status || "pending") as Campaign["status"],
         iterations: iterations ?? 0,
         created_at: new Date().toISOString(),
@@ -93,7 +99,7 @@ export default function CreateCampaignPage() {
       {/* Page header */}
       <div className="flex items-center gap-3 mb-8">
         <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-          <Wand2 className="w-5 h-5 text-primary" />
+          <Megaphone className="w-5 h-5 text-primary" />
         </div>
         <div>
           <h1 className="text-xl font-bold tracking-tight text-foreground">
@@ -109,6 +115,22 @@ export default function CreateCampaignPage() {
       <div className="grid gap-6 lg:grid-cols-2 mb-6">
         {/* Left: Source input */}
         <div className="section-card p-5 space-y-4">
+          <div>
+            <label className="text-sm font-semibold text-foreground block mb-1">
+              Campaign Name
+            </label>
+            <p className="text-xs text-muted-foreground mb-2">
+              What product or project is this campaign for?
+            </p>
+            <input
+              type="text"
+              value={campaignName}
+              onChange={(e) => setCampaignName(e.target.value)}
+              placeholder="e.g. Acme Task Manager, Project Nova..."
+              disabled={generating}
+              className="w-full bg-background rounded-xl border border-border px-4 h-11 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all disabled:opacity-50"
+            />
+          </div>
           <div>
             <label className="text-sm font-semibold text-foreground block mb-1">
               Source Text
@@ -127,7 +149,7 @@ export default function CreateCampaignPage() {
           />
           <Button
             onClick={handleGenerate}
-            disabled={generating || !sourceText.trim()}
+            disabled={generating || !sourceText.trim() || !campaignName.trim()}
             className="w-full gap-2 bg-primary text-primary-foreground hover:bg-primary/90 font-semibold h-11 shadow-sm"
           >
             {generating ? (
@@ -166,7 +188,7 @@ export default function CreateCampaignPage() {
             )}
           </div>
 
-          <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-[320px] max-h-[400px]">
+          <div className="flex-1 overflow-y-auto p-4 space-y-3 min-h-80 max-h-100">
             {messages.length === 0 && !generating && (
               <div className="flex flex-col items-center justify-center h-full py-12 text-center">
                 <div className="w-12 h-12 rounded-2xl bg-muted flex items-center justify-center mb-3">
@@ -175,7 +197,7 @@ export default function CreateCampaignPage() {
                 <p className="text-sm font-medium text-muted-foreground">
                   No activity yet
                 </p>
-                <p className="text-xs text-muted-foreground/70 mt-1 max-w-[200px]">
+                <p className="text-xs text-muted-foreground/70 mt-1 max-w-50">
                   Agent conversations will appear here when you generate a
                   campaign
                 </p>
@@ -246,7 +268,7 @@ export default function CreateCampaignPage() {
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h2 className="text-base font-bold text-foreground">
-                  Generated Campaign
+                  {campaignName || "Generated Campaign"}
                 </h2>
                 <p className="text-xs text-muted-foreground mt-0.5">
                   Review your AI-generated content below
@@ -285,14 +307,17 @@ export default function CreateCampaignPage() {
 
           {/* Social Thread */}
           {drafts?.social_thread && drafts.social_thread.length > 0 && (
-            <SocialThreadCard posts={drafts.social_thread} />
+            <SocialThreadCard
+              posts={drafts.social_thread}
+              campaignName={campaignName || undefined}
+            />
           )}
 
           {/* Email */}
           {drafts?.email_teaser && (
             <EmailCard
               content={drafts.email_teaser}
-              productName={factSheet?.product_name}
+              productName={campaignName || factSheet?.product_name}
             />
           )}
 
@@ -307,17 +332,17 @@ export default function CreateCampaignPage() {
                   Export Campaign Kit
                 </h3>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  Download as a PDF report
+                  Download as an HTML report
                 </p>
               </div>
               {campaignForPdf && (
                 <Button
                   size="sm"
                   className="gap-2 font-medium bg-primary text-primary-foreground hover:bg-primary/90"
-                  onClick={() => downloadCampaignAsPdf(campaignForPdf)}
+                  onClick={() => void downloadCampaignAsPdf(campaignForPdf)}
                 >
                   <Download className="w-4 h-4" />
-                  Download PDF
+                  Download Report
                 </Button>
               )}
             </div>

@@ -6,68 +6,32 @@ type FactSheet = {
   target_audience?: string;
   tone_and_positioning?: string;
   core_features?: string[];
-  ambiguous_statements?: { statement: string; reason: string }[];
 };
 
-function escapeHtml(str: string): string {
-  return str
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
 
-function renderFactSheet(fs: FactSheet): string {
-  const rows: string[] = [];
-  if (fs.product_name)
-    rows.push(`<tr><td class="label">Product</td><td>${escapeHtml(fs.product_name)}</td></tr>`);
-  if (fs.value_proposition)
-    rows.push(`<tr><td class="label">Value Proposition</td><td>${escapeHtml(fs.value_proposition)}</td></tr>`);
-  if (fs.target_audience)
-    rows.push(`<tr><td class="label">Target Audience</td><td>${escapeHtml(fs.target_audience)}</td></tr>`);
-  if (fs.tone_and_positioning)
-    rows.push(`<tr><td class="label">Tone</td><td>${escapeHtml(fs.tone_and_positioning)}</td></tr>`);
-  if (fs.core_features?.length)
-    rows.push(`<tr><td class="label">Core Features</td><td>${fs.core_features.map(f => `<span class="tag">${escapeHtml(f)}</span>`).join(" ")}</td></tr>`);
-  return rows.length
-    ? `<table class="fact-table">${rows.join("")}</table>`
-    : "";
-}
+export async function downloadCampaignAsPdf(campaign: Campaign): Promise<void> {
+  const { default: jsPDF } = await import("jspdf");
 
-function renderSocialThread(posts: string[]): string {
-  return posts
-    .map(
-      (p, i) =>
-        `<div class="tweet"><div class="tweet-header"><span class="tweet-name">Orkestr</span><span class="tweet-handle">@orkestr_ai</span><span class="tweet-num">${i + 1}/${posts.length}</span></div><p>${escapeHtml(p)}</p></div>`
-    )
-    .join("");
-}
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
 
-function renderReview(review: Campaign["output"]["review"]): string {
-  if (!review) return "";
-  const pieces = [
-    ["blog_post", "Blog Post"],
-    ["social_thread", "Social Thread"],
-    ["email_teaser", "Email Teaser"],
-  ] as const;
+  const pageW = doc.internal.pageSize.getWidth(); 
+  const pageH = doc.internal.pageSize.getHeight();
+  const ml = 18;
+  const mr = 18; 
+  const contentW = pageW - ml - mr;
 
-  return pieces
-    .map(([key, label]) => {
-      const r = (review as Record<string, { approved: boolean; correction_note?: string; issues?: string[] }>)[key];
-      if (!r) return "";
-      const icon = r.approved ? "✓" : "✗";
-      const status = r.approved ? "Approved" : "Revised";
-      const color = r.approved ? "#15803d" : "#b45309";
-      return `<div class="review-item"><span style="color:${color};font-weight:700">${icon} ${label}</span> — <span style="color:${color}">${status}</span>${r.correction_note ? `<p class="review-note">${escapeHtml(r.correction_note)}</p>` : ""}</div>`;
-    })
-    .join("");
-}
+  let y = ml;
 
-export function downloadCampaignAsPdf(campaign: Campaign): void {
+  const campaignName = campaign.campaign_name || "Campaign Report";
+  const safeName = campaignName
+    .replace(/[^a-zA-Z0-9\s\-_]/g, "")
+    .trim()
+    .replace(/\s+/g, "-");
+
   const factSheet = campaign.output?.fact_sheet as FactSheet | undefined;
   const drafts = campaign.output?.drafts;
   const review = campaign.output?.review;
+
   const date = campaign.created_at
     ? new Date(campaign.created_at).toLocaleDateString("en-US", {
         month: "long",
@@ -76,249 +40,297 @@ export function downloadCampaignAsPdf(campaign: Campaign): void {
       })
     : "N/A";
 
+  const C = {
+    primary: [67, 56, 202] as [number, number, number],   // indigo-700
+    text: [17, 24, 39] as [number, number, number],        // gray-900
+    muted: [107, 114, 128] as [number, number, number],    // gray-500
+    border: [229, 231, 235] as [number, number, number],   // gray-200
+    bg: [249, 250, 251] as [number, number, number],       // gray-50
+    approved: [21, 128, 61] as [number, number, number],   // green-700
+    rejected: [185, 28, 28] as [number, number, number],   // red-700
+    pending: [146, 64, 14] as [number, number, number],    // amber-800
+  };
+
+  const ensure = (needed: number) => {
+    if (y + needed > pageH - ml) {
+      doc.addPage();
+      y = ml;
+    }
+  };
+
+  const rule = (extra = 0) => {
+    doc.setDrawColor(...C.border);
+    doc.setLineWidth(0.2);
+    doc.line(ml, y + extra, pageW - mr, y + extra);
+  };
+
+  const sectionHeading = (num: number, label: string) => {
+    ensure(14);
+    // Number pill
+    doc.setFillColor(...C.primary);
+    doc.roundedRect(ml, y, 5.5, 5.5, 1, 1, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(7);
+    doc.setTextColor(255, 255, 255);
+    doc.text(String(num), ml + 1.3, y + 3.8);
+   
+    doc.setFontSize(8.5);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(...C.muted);
+    doc.text(label.toUpperCase(), ml + 8, y + 4);
+    y += 7;
+    rule();
+    y += 5;
+    doc.setTextColor(...C.text);
+    doc.setFont("helvetica", "normal");
+  };
+
+  const bodyText = (text: string, fontSize = 10, lineH = 5.2) => {
+    doc.setFontSize(fontSize);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(...C.text);
+    const lines = doc.splitTextToSize(text, contentW);
+    for (const line of lines) {
+      ensure(lineH + 2);
+      doc.text(line, ml, y);
+      y += lineH;
+    }
+    y += 2;
+  };
+
+  /** Key-value row (for fact sheet / email headers) */
+  const kvRow = (key: string, value: string) => {
+    ensure(8);
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(...C.muted);
+    doc.text(key.toUpperCase(), ml, y);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9.5);
+    doc.setTextColor(...C.text);
+    const lines = doc.splitTextToSize(value, contentW - 32);
+    doc.text(lines, ml + 32, y);
+    y += Math.max(6, lines.length * 5);
+    rule(1);
+    y += 4;
+  };
+
+  /** Source text inside a shaded box */
+  const sourceBox = (text: string) => {
+    doc.setFontSize(9.5);
+    const lines = doc.splitTextToSize(text, contentW - 10);
+    const boxH = lines.length * 5 + 8;
+    ensure(boxH + 4);
+    doc.setFillColor(...C.bg);
+    doc.setDrawColor(...C.border);
+    doc.setLineWidth(0.2);
+    doc.roundedRect(ml, y, contentW, boxH, 2, 2, "FD");
+    doc.setTextColor(...C.text);
+    doc.text(lines, ml + 5, y + 6);
+    y += boxH + 4;
+  };
+
+  /** Tweet box */
+  const tweetBox = (text: string, idx: number, total: number, name: string, handle: string) => {
+    doc.setFontSize(9.5);
+    const bodyLines = doc.splitTextToSize(text, contentW - 10);
+    const boxH = bodyLines.length * 5 + 18;
+    ensure(boxH + 4);
+
+    doc.setFillColor(255, 255, 255);
+    doc.setDrawColor(...C.border);
+    doc.setLineWidth(0.3);
+    doc.roundedRect(ml, y, contentW, boxH, 2, 2, "FD");
+
+    // Avatar circle
+    doc.setFillColor(...C.primary);
+    doc.circle(ml + 5, y + 7, 4, "F");
+    doc.setFontSize(7);
+    doc.setFont("helvetica", "bold");
+    doc.setTextColor(255, 255, 255);
+    doc.text((name[0] ?? "O").toUpperCase(), ml + 3.4, y + 8.5);
+
+    // Name + handle
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(...C.text);
+    doc.text(name, ml + 12, y + 6);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(...C.muted);
+    doc.text(`${handle}  ·  Just now`, ml + 12, y + 11);
+
+    // Thread number
+    if (total > 1) {
+      doc.setFontSize(7.5);
+      doc.text(`${idx + 1}/${total}`, pageW - mr - 10, y + 6);
+    }
+
+    doc.setFontSize(9.5);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(...C.text);
+    doc.text(bodyLines, ml + 5, y + 17);
+
+    y += boxH + 3;
+  };
+
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...C.primary);
+  doc.text("Orkestr  ·  Campaign Report", ml, y);
+
   const statusColor =
     campaign.status === "approved"
-      ? "#15803d"
+      ? C.approved
       : campaign.status === "rejected"
-        ? "#b91c1c"
-        : "#92400e";
+        ? C.rejected
+        : C.pending;
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(...C.muted);
+  doc.text(`${date}  ·  ${campaign.iterations} iteration${campaign.iterations !== 1 ? "s" : ""}`, pageW - mr, y, { align: "right" });
 
-  const html = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>Campaign Report — Orkestr</title>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, sans-serif;
-      color: #111827;
-      background: #fff;
-      font-size: 13px;
-      line-height: 1.6;
-      padding: 0;
-    }
-    .page { max-width: 780px; margin: 0 auto; padding: 48px 40px; }
-    /* Header */
-    .header {
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      border-bottom: 2px solid #e5e7eb;
-      padding-bottom: 24px;
-      margin-bottom: 32px;
-    }
-    .brand { font-size: 22px; font-weight: 800; color: #4338ca; letter-spacing: -0.5px; }
-    .brand-sub { font-size: 12px; color: #6b7280; margin-top: 2px; }
-    .meta { text-align: right; font-size: 11px; color: #6b7280; }
-    .status-pill {
-      display: inline-block;
-      padding: 3px 10px;
-      border-radius: 999px;
-      font-size: 11px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: ${statusColor};
-      border: 1.5px solid ${statusColor};
-      margin-bottom: 6px;
-    }
-    /* Section */
-    .section { margin-bottom: 32px; }
-    .section-title {
-      font-size: 11px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-      color: #6b7280;
-      margin-bottom: 10px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .section-title::after {
-      content: "";
-      flex: 1;
-      height: 1px;
-      background: #e5e7eb;
-    }
-    .section-num {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
-      background: #4338ca;
-      color: #fff;
-      font-size: 10px;
-      font-weight: 700;
-    }
-    /* Source text */
-    .source-box {
-      background: #f9fafb;
-      border: 1px solid #e5e7eb;
-      border-radius: 8px;
-      padding: 14px 16px;
-      white-space: pre-wrap;
-      font-size: 12.5px;
-      color: #374151;
-    }
-    /* Fact sheet */
-    .fact-table { width: 100%; border-collapse: collapse; }
-    .fact-table tr { border-bottom: 1px solid #f3f4f6; }
-    .fact-table tr:last-child { border-bottom: none; }
-    .fact-table td { padding: 8px 6px; vertical-align: top; font-size: 12.5px; }
-    .fact-table td.label {
-      width: 160px;
-      font-weight: 600;
-      color: #6b7280;
-      font-size: 11px;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      padding-right: 16px;
-    }
-    .tag {
-      display: inline-block;
-      background: #eef2ff;
-      color: #4338ca;
-      border: 1px solid #c7d2fe;
-      border-radius: 999px;
-      padding: 1px 8px;
-      font-size: 11px;
-      font-weight: 500;
-      margin: 2px 2px;
-    }
-    /* Content */
-    .content-box { white-space: pre-wrap; font-size: 13px; line-height: 1.75; color: #1f2937; }
-    /* Tweet */
-    .tweet {
-      border: 1px solid #e5e7eb;
-      border-radius: 10px;
-      padding: 12px 14px;
-      margin-bottom: 10px;
-    }
-    .tweet-header { display: flex; gap: 8px; align-items: center; margin-bottom: 6px; }
-    .tweet-name { font-weight: 700; font-size: 13px; }
-    .tweet-handle { color: #6b7280; font-size: 12px; }
-    .tweet-num { margin-left: auto; background: #f3f4f6; border-radius: 999px; padding: 1px 8px; font-size: 11px; color: #6b7280; }
-    /* Email */
-    .email-card { border: 1px solid #e5e7eb; border-radius: 10px; overflow: hidden; }
-    .email-header { background: #f9fafb; padding: 12px 16px; border-bottom: 1px solid #e5e7eb; }
-    .email-field { display: flex; gap: 12px; padding: 5px 0; border-bottom: 1px solid #f3f4f6; font-size: 12px; }
-    .email-field:last-child { border-bottom: none; }
-    .email-label { width: 64px; font-weight: 600; color: #6b7280; text-transform: uppercase; font-size: 10px; letter-spacing: 0.05em; padding-top: 1px; }
-    .email-body { padding: 16px; white-space: pre-wrap; font-size: 13px; line-height: 1.75; color: #1f2937; }
-    .email-footer { background: #f9fafb; padding: 8px 16px; border-top: 1px solid #e5e7eb; font-size: 11px; color: #9ca3af; }
-    /* Review */
-    .review-item { padding: 8px 0; border-bottom: 1px solid #f3f4f6; }
-    .review-item:last-child { border-bottom: none; }
-    .review-note { color: #6b7280; font-size: 12px; margin-top: 4px; }
-    /* Footer */
-    .doc-footer { border-top: 1px solid #e5e7eb; margin-top: 40px; padding-top: 14px; text-align: center; font-size: 11px; color: #9ca3af; }
-    @media print {
-      body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
-      .page { padding: 32px 36px; }
-    }
-  </style>
-</head>
-<body>
-<div class="page">
-  <!-- Header -->
-  <div class="header">
-    <div>
-      <div class="brand">Orkestr</div>
-      <div class="brand-sub">AI Campaign Report</div>
-    </div>
-    <div class="meta">
-      <div class="status-pill">${escapeHtml(campaign.status || "pending")}</div>
-      <div>${campaign.iterations} iteration${campaign.iterations !== 1 ? "s" : ""}</div>
-      <div>${escapeHtml(date)}</div>
-    </div>
-  </div>
+  y += 9;
 
-  <!-- 1. Source Text -->
-  <div class="section">
-    <div class="section-title"><span class="section-num">1</span> Source Text</div>
-    <div class="source-box">${escapeHtml(campaign.input_text || "")}</div>
-  </div>
+  doc.setFontSize(22);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...C.text);
+  const nameLines = doc.splitTextToSize(campaignName, contentW - 30);
+  doc.text(nameLines, ml, y);
+  y += nameLines.length * 10;
 
-  ${
-    factSheet
-      ? `<!-- 2. Fact Sheet -->
-  <div class="section">
-    <div class="section-title"><span class="section-num">2</span> AI Fact Sheet</div>
-    ${renderFactSheet(factSheet)}
-  </div>`
-      : ""
+  // Status pill
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "bold");
+  doc.setTextColor(...statusColor);
+  const pillLabel = (campaign.status || "pending").toUpperCase();
+  const pillW = doc.getTextWidth(pillLabel) + 6;
+  doc.setDrawColor(...statusColor);
+  doc.setLineWidth(0.5);
+  doc.roundedRect(ml, y, pillW, 5.5, 1.5, 1.5, "D");
+  doc.text(pillLabel, ml + 3, y + 3.8);
+
+  y += 10;
+  rule();
+  y += 8;
+
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(...C.text);
+
+  if (campaign.input_text) {
+    sectionHeading(1, "Source Text");
+    sourceBox(campaign.input_text);
+  }
+  if (
+    factSheet &&
+    (factSheet.product_name ||
+      factSheet.value_proposition ||
+      factSheet.target_audience)
+  ) {
+    sectionHeading(2, "AI Fact Sheet");
+    if (factSheet.product_name) kvRow("Product", factSheet.product_name);
+    if (factSheet.value_proposition) kvRow("Value Proposition", factSheet.value_proposition);
+    if (factSheet.target_audience) kvRow("Target Audience", factSheet.target_audience);
+    if (factSheet.tone_and_positioning) kvRow("Tone", factSheet.tone_and_positioning);
+    if (factSheet.core_features?.length) {
+      kvRow("Core Features", factSheet.core_features.join("  ·  "));
+    }
   }
 
-  ${
-    drafts?.blog_post
-      ? `<!-- 3. Blog Post -->
-  <div class="section">
-    <div class="section-title"><span class="section-num">3</span> Blog Post</div>
-    <div class="content-box">${escapeHtml(drafts.blog_post)}</div>
-  </div>`
-      : ""
+  if (drafts?.blog_post) {
+    sectionHeading(3, "Blog Post");
+    bodyText(drafts.blog_post, 9.5, 5.2);
+  }
+  if (drafts?.social_thread?.length) {
+    sectionHeading(4, "Social Media Thread");
+    const handle =
+      "@" +
+      campaignName
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "")
+        .slice(0, 15) || "orkestr_ai";
+    for (let i = 0; i < drafts.social_thread.length; i++) {
+      tweetBox(
+        drafts.social_thread[i],
+        i,
+        drafts.social_thread.length,
+        campaignName,
+        handle,
+      );
+    }
+    y += 2;
+  }
+  if (drafts?.email_teaser) {
+    sectionHeading(5, "Email Campaign");
+    const emailName = campaignName;
+    const emailHandle = emailName.toLowerCase().replace(/[^a-z0-9]/g, "");
+    const subject = `Introducing ${emailName} — See What's Possible`;
+    kvRow("From", `${emailName} <hello@${emailHandle}.ai>`);
+    kvRow("To", "Marketing Team <marketing@yourcompany.com>");
+    kvRow("CC", "growth@yourcompany.com, ceo@yourcompany.com");
+    kvRow("Subject", subject);
+    y += 2;
+    bodyText(drafts.email_teaser, 9.5, 5.2);
+
+    // Signature
+    ensure(12);
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "italic");
+    doc.setTextColor(...C.muted);
+    doc.text(`— The ${emailName} Team  ·  hello@${emailHandle}.ai`, ml, y);
+    y += 8;
+    doc.setFont("helvetica", "normal");
   }
 
-  ${
-    drafts?.social_thread?.length
-      ? `<!-- 4. Social Thread -->
-  <div class="section">
-    <div class="section-title"><span class="section-num">4</span> Social Media Thread</div>
-    ${renderSocialThread(drafts.social_thread)}
-  </div>`
-      : ""
+  if (review) {
+    sectionHeading(6, "Editor Review");
+    const pieces = [
+      ["blog_post", "Blog Post"],
+      ["social_thread", "Social Thread"],
+      ["email_teaser", "Email Teaser"],
+    ] as const;
+    for (const [key, label] of pieces) {
+      const r = (
+        review as Record<
+          string,
+          { approved: boolean; correction_note?: string }
+        >
+      )[key];
+      if (!r) continue;
+      ensure(12);
+      doc.setFontSize(9.5);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(...(r.approved ? C.approved : C.rejected));
+      doc.text(`${r.approved ? "✓" : "✗"}  ${label} — ${r.approved ? "Approved" : "Revised"}`, ml, y);
+      y += 5.5;
+      if (r.correction_note) {
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(9);
+        doc.setTextColor(...C.muted);
+        const noteLines = doc.splitTextToSize(r.correction_note, contentW - 8);
+        for (const line of noteLines) {
+          ensure(5);
+          doc.text(line, ml + 6, y);
+          y += 4.5;
+        }
+      }
+      y += 3;
+    }
   }
 
-  ${
-    drafts?.email_teaser
-      ? `<!-- 5. Email -->
-  <div class="section">
-    <div class="section-title"><span class="section-num">5</span> Email Campaign</div>
-    <div class="email-card">
-      <div class="email-header">
-        <div class="email-field"><span class="email-label">From</span><span>Orkestr AI &lt;campaigns@orkestr.ai&gt;</span></div>
-        <div class="email-field"><span class="email-label">To</span><span>Marketing Team &lt;marketing@yourcompany.com&gt;</span></div>
-        <div class="email-field"><span class="email-label">CC</span><span>growth@yourcompany.com, ceo@yourcompany.com</span></div>
-        <div class="email-field"><span class="email-label">Subject</span><span>${escapeHtml(factSheet?.product_name ? `Introducing ${factSheet.product_name} — See What's Possible` : drafts.email_teaser.split("\n")[0]?.slice(0, 68) ?? "Campaign Update")}</span></div>
-      </div>
-      <div class="email-body">${escapeHtml(drafts.email_teaser)}</div>
-      <div class="email-footer">Orkestr AI · AI-Powered Campaign Generator</div>
-    </div>
-  </div>`
-      : ""
-  }
+  ensure(12);
+  y += 4;
+  rule();
+  y += 5;
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "normal");
+  doc.setTextColor(...C.muted);
+  doc.text(
+    `${campaignName}  ·  Generated by Orkestr AI  ·  ${new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}`,
+    pageW / 2,
+    y,
+    { align: "center" },
+  );
 
-  ${
-    review
-      ? `<!-- 6. Editor Review -->
-  <div class="section">
-    <div class="section-title"><span class="section-num">6</span> Editor Review</div>
-    ${renderReview(review)}
-  </div>`
-      : ""
-  }
-
-  <div class="doc-footer">
-    Generated by Orkestr AI · ${new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
-  </div>
-</div>
-<script>
-  window.onload = function() {
-    setTimeout(function() { window.print(); }, 400);
-  };
-</script>
-</body>
-</html>`;
-
-  const w = window.open("", "_blank", "width=900,height=800");
-  if (!w) {
-    alert("Please allow pop-ups to download the PDF.");
-    return;
-  }
-  w.document.write(html);
-  w.document.close();
+  doc.save(`${safeName.toLowerCase()}-report.pdf`);
 }

@@ -11,6 +11,7 @@ ap = AgentPipeline()
 async def generate_content(request: OrkestrRequest , user=Depends(get_current_user)):
     
     result = await ap.run(
+        request.campaignName,
         request.text,
         user.id
     )

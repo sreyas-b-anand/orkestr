@@ -7,14 +7,14 @@ import {
   Mail,
   Users,
   User,
-  AtSign,
   AlignLeft,
-  Paperclip,
+  Building2,
 } from "lucide-react";
 import { toast } from "sonner";
 
 interface EmailCardProps {
   content: string;
+  /** Campaign / product name — used throughout the email */
   productName?: string;
 }
 
@@ -22,10 +22,12 @@ function EmailField({
   icon,
   label,
   value,
+  highlight,
 }: {
   icon: React.ReactNode;
   label: string;
   value: string;
+  highlight?: boolean;
 }) {
   return (
     <div className="flex items-start gap-3 py-2.5 border-b border-border last:border-0">
@@ -35,7 +37,13 @@ function EmailField({
           {label}
         </span>
       </div>
-      <span className="text-sm text-foreground leading-relaxed">{value}</span>
+      <span
+        className={`text-sm leading-relaxed ${
+          highlight ? "font-semibold text-foreground" : "text-foreground"
+        }`}
+      >
+        {value}
+      </span>
     </div>
   );
 }
@@ -43,21 +51,24 @@ function EmailField({
 export function EmailCard({ content, productName }: EmailCardProps) {
   const [copied, setCopied] = useState(false);
 
-  const firstLine = content.split("\n").find((l) => l.trim().length > 10) ?? "";
-  const subject = productName
-    ? `Introducing ${productName} — See What's Possible`
-    : firstLine.slice(0, 68) + (firstLine.length > 68 ? "…" : "");
+  const name = productName?.trim() || "Orkestr";
 
-  const fullEmailText = `From: Orkestr AI <campaigns@orkestr.ai>
+  // Sender identity uses campaign name
+  const fromAddress = `${name} <hello@${name.toLowerCase().replace(/[^a-z0-9]/g, "")}.ai>`;
+
+  // Subject derived from campaign name or first line
+  const firstLine = content.split("\n").find((l) => l.trim().length > 10) ?? "";
+  const subject = `Introducing ${name} — See What's Possible`;
+
+  // Signature block
+  const signature = `\n\n—\nThe ${name} Team\nhello@${name.toLowerCase().replace(/[^a-z0-9]/g, "")}.ai`;
+
+  const fullEmailText = `From: ${fromAddress}
 To: Marketing Team <marketing@yourcompany.com>
 CC: growth@yourcompany.com, ceo@yourcompany.com
 Subject: ${subject}
 
-${content}
-
---
-Orkestr AI · AI-Powered Campaign Generator
-Unsubscribe · Privacy Policy`;
+${content}${signature}`;
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(fullEmailText);
@@ -68,7 +79,7 @@ Unsubscribe · Privacy Policy`;
 
   return (
     <div className="section-card overflow-hidden">
-      {/* Window chrome / header */}
+      {/* Header / toolbar */}
       <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-muted/20">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-violet-500/10 flex items-center justify-center shrink-0">
@@ -79,7 +90,8 @@ Unsubscribe · Privacy Policy`;
               Email Campaign
             </h2>
             <p className="text-xs text-muted-foreground">
-              Ready-to-send campaign email
+              Ready-to-send email for{" "}
+              <span className="font-medium text-foreground">{name}</span>
             </p>
           </div>
         </div>
@@ -96,15 +108,16 @@ Unsubscribe · Privacy Policy`;
         </button>
       </div>
 
-      {/* Email header fields */}
-      <div className="px-6 pt-2 pb-1 border-b border-border bg-muted/10">
+      {/* Metadata fields */}
+      <div className="px-6 py-1 border-b border-border bg-muted/5">
         <EmailField
-          icon={<User className="w-3.5 h-3.5" />}
+          icon={<Building2 className="w-3.5 h-3.5" />}
           label="From"
-          value="Orkestr AI <campaigns@orkestr.ai>"
+          value={fromAddress}
+          highlight
         />
         <EmailField
-          icon={<AtSign className="w-3.5 h-3.5" />}
+          icon={<User className="w-3.5 h-3.5" />}
           label="To"
           value="Marketing Team <marketing@yourcompany.com>"
         />
@@ -117,28 +130,38 @@ Unsubscribe · Privacy Policy`;
           icon={<AlignLeft className="w-3.5 h-3.5" />}
           label="Subject"
           value={subject}
-        />
-        <EmailField
-          icon={<Paperclip className="w-3.5 h-3.5" />}
-          label="Attach"
-          value="campaign-brief.pdf (AI-generated)"
+          highlight
         />
       </div>
 
       {/* Email body */}
       <div className="px-8 py-6">
         <div className="max-w-2xl">
-          <p className="text-sm text-foreground leading-[1.85] whitespace-pre-wrap">
+          <p className="text-sm text-foreground leading-[1.9] whitespace-pre-wrap">
             {content}
           </p>
         </div>
       </div>
 
-      {/* Email footer */}
+      {/* Signature */}
+      <div className="px-8 pb-5">
+        <div className="pt-4 border-t border-border">
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            <span className="block text-foreground font-medium">
+              The {name} Team
+            </span>
+            <span className="text-xs">
+              hello@
+              {name.toLowerCase().replace(/[^a-z0-9]/g, "")}.ai
+            </span>
+          </p>
+        </div>
+      </div>
+
+      {/* Footer */}
       <div className="px-6 py-3 border-t border-border bg-muted/20">
         <p className="text-[11px] text-muted-foreground">
-          You are receiving this because you subscribed to Orkestr campaign
-          updates.{" "}
+          You are receiving this because you subscribed to {name} updates.{" "}
           <span className="underline cursor-pointer hover:text-foreground transition-colors">
             Unsubscribe
           </span>{" "}

@@ -10,7 +10,7 @@ import {
   Trash2,
   Calendar,
   IterationCcw,
-  FileText,
+  Megaphone,
   ArrowRight,
 } from "lucide-react";
 
@@ -29,7 +29,8 @@ export function CampaignCard({ campaign, index, onDelete }: CampaignCardProps) {
       })
     : "N/A";
 
-  const preview = campaign.input_text?.slice(0, 200) || "";
+  const campaignName = campaign.campaign_name || "Untitled Campaign";
+  const preview = campaign.input_text?.slice(0, 160) || "";
 
   return (
     <motion.div
@@ -40,7 +41,7 @@ export function CampaignCard({ campaign, index, onDelete }: CampaignCardProps) {
       transition={{ delay: index * 0.05, duration: 0.3 }}
       className="section-card flex flex-col group hover:shadow-md hover:-translate-y-0.5 transition-all duration-200"
     >
-      {/* Status strip at top */}
+      {/* Status strip */}
       <div className="flex items-center justify-between px-5 pt-4 pb-3 border-b border-border">
         <StatusBadge status={campaign.status} size="sm" />
         <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
@@ -55,15 +56,20 @@ export function CampaignCard({ campaign, index, onDelete }: CampaignCardProps) {
         </div>
       </div>
 
-      {/* Preview */}
+      {/* Campaign name + preview */}
       <div className="flex gap-3 px-5 py-4 flex-1">
-        <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0 mt-0.5">
-          <FileText className="w-4 h-4 text-muted-foreground" />
+        <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+          <Megaphone className="w-4 h-4 text-primary" />
         </div>
-        <p className="text-sm text-foreground/80 leading-relaxed line-clamp-4">
-          {preview}
-          {campaign.input_text?.length > 200 ? "…" : ""}
-        </p>
+        <div className="flex-1 min-w-0">
+          <h3 className="text-sm font-semibold text-foreground mb-1 truncate">
+            {campaignName}
+          </h3>
+          <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3">
+            {preview}
+            {(campaign.input_text?.length ?? 0) > 160 ? "…" : ""}
+          </p>
+        </div>
       </div>
 
       {/* Actions */}

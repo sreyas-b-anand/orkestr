@@ -1,10 +1,16 @@
+import logging
 from fastapi import FastAPI , status
 from fastapi.middleware.cors import CORSMiddleware
 from routes import model_router, campaign_router, ws_router
-from middlewares import AuthMiddleware , RateLimiterMiddleware
+from middlewares import AuthMiddleware , RateLimiterMiddleware 
 from config import Settings
 
 settings = Settings()
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(levelname)s | %(message)s",
+)
 
 app = FastAPI(title="Orkestr FastAPI")
 

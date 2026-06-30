@@ -213,9 +213,10 @@ class AgentPipeline:
 
         self.app = self.graph.compile()
 
-    async def run(self, source_text: str, user_id: UUID):
+    async def run(self,campaign_name : str ,  source_text: str, user_id: UUID):
 
         result = await self.app.ainvoke({
+            "campaign_name" : campaign_name,
             "source_text": source_text,
             "user_id": str(user_id),
             "fact_sheet": {},
@@ -235,6 +236,7 @@ class AgentPipeline:
 
         try:
             self.supabase.client.table("campaigns").insert({
+                "campaign_name" : campaign_name ,
                 "user_id": str(user_id),
                 "input_text": source_text,
                 "output": json.loads(json.dumps(output_data, default=str)),
